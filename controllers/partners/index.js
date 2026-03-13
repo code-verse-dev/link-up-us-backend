@@ -102,6 +102,7 @@ exports.update = async (req, res) => {
     if (active !== undefined) partner.active = !!active;
     await partner.save();
     const obj = partner.toObject();
+    
     return res.json(
       ApiResponse(
         {
