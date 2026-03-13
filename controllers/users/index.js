@@ -11,6 +11,31 @@ exports.getMe = async (req, res) => {
   }
 };
 
+exports.listMembers = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const skip = parseInt(req.query.skip, 10) || 0;
+    const [members, total] = await Promise.all([
+      User.find()
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(),
+    ]);
+    return res.json(
+      ApiResponse(
+        { members, total, limit, skip },
+        "OK",
+        true
+      )
+    );
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
 exports.updateMe = async (req, res) => {
   try {
     const allowed = [
