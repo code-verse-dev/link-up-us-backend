@@ -14,5 +14,7 @@ router.use("/billing", require("./billing"));
 router.use("/upload", require("./upload"));
 router.use("/clusters", require("./clusters"));
 router.use("/industries", require("./industries"));
+router.use("/partners", require("./partners"));
+router.use("/tiers", require("./tiers"));
 
 module.exports = router;

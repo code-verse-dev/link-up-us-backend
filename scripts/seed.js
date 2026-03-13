@@ -11,6 +11,8 @@ const EmailTemplate = require("../models/EmailTemplate");
 const TrainingVideo = require("../models/TrainingVideo");
 const Cluster = require("../models/Cluster");
 const Industry = require("../models/Industry");
+const Partner = require("../models/Partner");
+const ReferralTier = require("../models/ReferralTier");
 
 const { DB } = process.env;
 
@@ -30,6 +32,22 @@ const DEFAULT_CLUSTERS = [
   { name: "Flagstaff", order: 3, description: "Northern Arizona" },
   { name: "Prescott", order: 4, description: "Prescott region" },
   { name: "Wickenburg", order: 5, description: "Wickenburg and west" },
+];
+
+const DEFAULT_PARTNERS = [
+  { businessName: "Desert Sun Café", name: "Maria G.", region: "Phoenix Metro", sortOrder: 1 },
+  { businessName: "Canyon Fitness", name: "James L.", region: "Phoenix Metro", sortOrder: 2 },
+  { businessName: "Old Pueblo Retail", name: "Ana R.", region: "Tucson", sortOrder: 3 },
+  { businessName: "Mountain Wellness Co", name: "Chris T.", region: "Flagstaff", sortOrder: 4 },
+  { businessName: "Prescott Valley Auto", name: "Dave K.", region: "Prescott", sortOrder: 5 },
+  { businessName: "Wickenburg Feed & Supply", name: "Sue M.", region: "Wickenburg", sortOrder: 6 },
+];
+
+const DEFAULT_TIERS = [
+  { name: "Starter", label: "Starter", minReferrals: 0, sortOrder: 1, description: "New to the referral program.", active: true },
+  { name: "Partner", label: "Partner", minReferrals: 5, sortOrder: 2, description: "5+ active referrals.", active: true },
+  { name: "Elite Partner", label: "Elite Partner", minReferrals: 25, sortOrder: 3, description: "25+ active referrals.", active: true },
+  { name: "Champion", label: "Champion", minReferrals: 100, sortOrder: 4, description: "100+ active referrals. Top tier.", active: true },
 ];
 
 const DEFAULT_PLANS = [
@@ -171,6 +189,22 @@ async function seed() {
     console.log("Created %d training videos", DEFAULT_TRAINING_VIDEOS.length);
   } else {
     console.log("Training videos already exist, skipping");
+  }
+
+  // Partners (admin-managed list for Partner Poster Generator)
+  if ((await Partner.countDocuments()) === 0) {
+    await Partner.insertMany(DEFAULT_PARTNERS);
+    console.log("Created %d partners", DEFAULT_PARTNERS.length);
+  } else {
+    console.log("Partners already exist, skipping");
+  }
+
+  // Referral tiers (shown on Referrals page and Admin > Tiers)
+  if ((await ReferralTier.countDocuments()) === 0) {
+    await ReferralTier.insertMany(DEFAULT_TIERS);
+    console.log("Created %d referral tiers", DEFAULT_TIERS.length);
+  } else {
+    console.log("Referral tiers already exist, skipping");
   }
 
   await mongoose.disconnect();
