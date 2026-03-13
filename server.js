@@ -8,6 +8,8 @@ const fs = require("fs");
 const path = require("path");
 const env = process.env.NODE_ENV || "development";
 
+// Load base .env first, then env-specific so Stripe keys work even with plain .env
+require("dotenv").config();
 require("dotenv").config({ path: `.env.${env}` });
 
 const { NODE_ENV, PORT } = process.env;
