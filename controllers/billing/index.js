@@ -272,6 +272,49 @@ exports.getSubscription = async (req, res) => {
   }
 };
 
+/** GET /api/billing/payment-method — returns current user's default payment method (auth). */
+exports.getPaymentMethod = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.headers["x-user-id"] || req.query?.userId;
+    if (!userId) {
+      return res.status(401).json(ApiResponse({}, "Unauthorized", false));
+    }
+    // Placeholder: no stripeCustomerId stored on User yet; return empty until wired to Stripe
+    return res.json(
+      ApiResponse(
+        { paymentMethod: null, message: "No payment method on file." },
+        "OK",
+        true
+      )
+    );
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
+/** GET /api/billing/summary — returns billing summary for current user (auth). */
+exports.getBillingSummary = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.headers["x-user-id"] || req.query?.userId;
+    if (!userId) {
+      return res.status(401).json(ApiResponse({}, "Unauthorized", false));
+    }
+    const sub = await Subscription.findOne({ userId })
+      .populate("planId")
+      .sort({ createdAt: -1 })
+      .lean();
+    const summary = {
+      subscribed: !!sub,
+      plan: sub?.planId ? { id: sub.planId._id, name: sub.planId.name } : null,
+      status: sub?.status || null,
+      currentPeriodEnd: sub?.currentPeriodEnd || null,
+    };
+    return res.json(ApiResponse(summary, "OK", true));
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
 exports.listInvoices = async (req, res) => {
   try {
     const userId = req.user?._id || req.headers["x-user-id"] || req.query?.userId;
