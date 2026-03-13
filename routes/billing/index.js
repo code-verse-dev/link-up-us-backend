@@ -12,3 +12,4 @@ router.get("/subscription", userRoute, getSubscription);
 router.get("/invoices", userRoute, listInvoices);
 
 module.exports = router;
+
