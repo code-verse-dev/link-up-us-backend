@@ -7,6 +7,8 @@ const templateSchema = new Schema(
     description: { type: String },
     previewUrl: { type: String },
     htmlFile: { type: String },
+    order: { type: Number, default: 0 },
+    htmlContent: { type: String },
   },
   { timestamps: true }
 );
