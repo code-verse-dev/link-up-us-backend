@@ -2,8 +2,12 @@
 // Usage: node scripts/seed.js
 // Env: NODE_ENV=development (default) loads .env.development; NODE_ENV=customdev loads .env.customdev.
 
+const path = require("path");
 const env = process.env.NODE_ENV || "development";
-require("dotenv").config({ path: `.env.${env}` });
+
+// Load base .env first, then env-specific (resolved from project root).
+require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
+require("dotenv").config({ path: path.resolve(__dirname, "..", `.env.${env}`) });
 
 const mongoose = require("mongoose");
 const Plan = require("../models/Plan");
@@ -35,12 +39,48 @@ const DEFAULT_CLUSTERS = [
 ];
 
 const DEFAULT_PARTNERS = [
-  { businessName: "Desert Sun Café", name: "Maria G.", region: "Phoenix Metro", sortOrder: 1 },
-  { businessName: "Canyon Fitness", name: "James L.", region: "Phoenix Metro", sortOrder: 2 },
-  { businessName: "Old Pueblo Retail", name: "Ana R.", region: "Tucson", sortOrder: 3 },
-  { businessName: "Mountain Wellness Co", name: "Chris T.", region: "Flagstaff", sortOrder: 4 },
-  { businessName: "Prescott Valley Auto", name: "Dave K.", region: "Prescott", sortOrder: 5 },
-  { businessName: "Wickenburg Feed & Supply", name: "Sue M.", region: "Wickenburg", sortOrder: 6 },
+  {
+    businessName: "Desert Sun Cafe",
+    name: "Maria G.",
+    region: "Phoenix Metro",
+    logoUrl: "https://picsum.photos/seed/partner-desert-sun/320/180",
+    sortOrder: 1,
+  },
+  {
+    businessName: "Canyon Fitness",
+    name: "James L.",
+    region: "Phoenix Metro",
+    logoUrl: "https://picsum.photos/seed/partner-canyon-fitness/320/180",
+    sortOrder: 2,
+  },
+  {
+    businessName: "Old Pueblo Retail",
+    name: "Ana R.",
+    region: "Tucson",
+    logoUrl: "https://picsum.photos/seed/partner-old-pueblo/320/180",
+    sortOrder: 3,
+  },
+  {
+    businessName: "Mountain Wellness Co",
+    name: "Chris T.",
+    region: "Flagstaff",
+    logoUrl: "https://picsum.photos/seed/partner-mountain-wellness/320/180",
+    sortOrder: 4,
+  },
+  {
+    businessName: "Prescott Valley Auto",
+    name: "Dave K.",
+    region: "Prescott",
+    logoUrl: "https://picsum.photos/seed/partner-prescott-auto/320/180",
+    sortOrder: 5,
+  },
+  {
+    businessName: "Wickenburg Feed & Supply",
+    name: "Sue M.",
+    region: "Wickenburg",
+    logoUrl: "https://picsum.photos/seed/partner-wickenburg-feed/320/180",
+    sortOrder: 6,
+  },
 ];
 
 const DEFAULT_TIERS = [
@@ -132,12 +172,42 @@ const DEFAULT_TEMPLATES = [
 ];
 
 const DEFAULT_TRAINING_VIDEOS = [
-  { title: "Using Your Referral Banner", duration: "6:20", thumbnail: "https://picsum.photos/320/180?seed=1", videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-  { title: "Newsletter Marketing for Partners", duration: "10:15", thumbnail: "https://picsum.photos/320/180?seed=2", videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-  { title: "Cross-Promotion Strategies", duration: "12:30", thumbnail: "https://picsum.photos/320/180?seed=3", videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-  { title: "How Referrals Grow Your Business", duration: "9:00", thumbnail: "https://picsum.photos/320/180?seed=4", videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-  { title: "Referral Best Practices", duration: "8:45", thumbnail: "https://picsum.photos/320/180?seed=5", videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-  { title: "QR Code & Placard Placement", duration: "7:30", thumbnail: "https://picsum.photos/320/180?seed=6", videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
+  {
+    title: "Using Your Referral Banner",
+    duration: "6:20",
+    thumbnail: "https://picsum.photos/seed/training-banner/320/180",
+    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
+  },
+  {
+    title: "Newsletter Marketing for Partners",
+    duration: "10:15",
+    thumbnail: "https://picsum.photos/seed/training-newsletter/320/180",
+    videoUrl: "https://www.w3schools.com/html/movie.mp4",
+  },
+  {
+    title: "Cross-Promotion Strategies",
+    duration: "12:30",
+    thumbnail: "https://picsum.photos/seed/training-cross-promo/320/180",
+    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
+  },
+  {
+    title: "How Referrals Grow Your Business",
+    duration: "9:00",
+    thumbnail: "https://picsum.photos/seed/training-growth/320/180",
+    videoUrl: "https://www.w3schools.com/html/movie.mp4",
+  },
+  {
+    title: "Referral Best Practices",
+    duration: "8:45",
+    thumbnail: "https://picsum.photos/seed/training-best-practices/320/180",
+    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
+  },
+  {
+    title: "QR Code & Placard Placement",
+    duration: "7:30",
+    thumbnail: "https://picsum.photos/seed/training-qr-placement/320/180",
+    videoUrl: "https://www.w3schools.com/html/movie.mp4",
+  },
 ];
 
 async function seed() {
@@ -183,21 +253,41 @@ async function seed() {
   }
   console.log("Upserted %d email templates", DEFAULT_TEMPLATES.length);
 
-  // Training videos: only insert if none exist
-  if ((await TrainingVideo.countDocuments()) === 0) {
-    await TrainingVideo.insertMany(DEFAULT_TRAINING_VIDEOS);
-    console.log("Created %d training videos", DEFAULT_TRAINING_VIDEOS.length);
-  } else {
-    console.log("Training videos already exist, skipping");
+  // Training videos: upsert by title so reruns repair missing thumbnails/video URLs.
+  for (const v of DEFAULT_TRAINING_VIDEOS) {
+    await TrainingVideo.findOneAndUpdate(
+      { title: v.title },
+      {
+        $set: {
+          title: v.title,
+          duration: v.duration,
+          thumbnail: v.thumbnail,
+          videoUrl: v.videoUrl,
+        },
+      },
+      { upsert: true, new: true }
+    );
   }
+  console.log("Upserted %d training videos", DEFAULT_TRAINING_VIDEOS.length);
 
-  // Partners (admin-managed list for Partner Poster Generator)
-  if ((await Partner.countDocuments()) === 0) {
-    await Partner.insertMany(DEFAULT_PARTNERS);
-    console.log("Created %d partners", DEFAULT_PARTNERS.length);
-  } else {
-    console.log("Partners already exist, skipping");
+  // Partners (member marketplace): upsert by businessName so logos are always present.
+  for (const p of DEFAULT_PARTNERS) {
+    await Partner.findOneAndUpdate(
+      { businessName: p.businessName },
+      {
+        $set: {
+          businessName: p.businessName,
+          name: p.name,
+          logoUrl: p.logoUrl,
+          region: p.region,
+          sortOrder: p.sortOrder,
+          active: true,
+        },
+      },
+      { upsert: true, new: true }
+    );
   }
+  console.log("Upserted %d partners for marketplace", DEFAULT_PARTNERS.length);
 
   // Referral tiers (shown on Referrals page and Admin > Tiers)
   if ((await ReferralTier.countDocuments()) === 0) {
