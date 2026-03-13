@@ -71,6 +71,10 @@ exports.createCheckoutSession = async (req, res) => {
       return res.status(500).json(ApiResponse({}, "No subscription plan configured", false));
     }
 
+    const planProduct = await stripe.products.create({
+      name: plan.name,
+      description: (plan.subtitle || plan.description || "Monthly subscription").slice(0, 500),
+    });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
@@ -78,10 +82,7 @@ exports.createCheckoutSession = async (req, res) => {
         {
           price_data: {
             currency: "usd",
-            product_data: {
-              name: plan.name,
-              description: plan.subtitle || plan.description || "Monthly subscription",
-            },
+            product: planProduct.id,
             unit_amount: plan.priceCents,
             recurring: { interval: plan.interval || "month" },
           },
@@ -152,16 +153,17 @@ exports.createSubscription = async (req, res) => {
 
     const priceCents = plan.priceCents;
     const interval = plan.interval || "month";
+    const product = await stripe.products.create({
+      name: plan.name,
+      description: (plan.subtitle || plan.description || "").slice(0, 500),
+    });
     const stripeSubscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [
         {
           price_data: {
             currency: "usd",
-            product_data: {
-              name: plan.name,
-              description: plan.subtitle || plan.description || "",
-            },
+            product: product.id,
             unit_amount: priceCents,
             recurring: { interval: interval === "year" ? "year" : "month" },
           },

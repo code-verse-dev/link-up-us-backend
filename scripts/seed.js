@@ -10,8 +10,19 @@ const Plan = require("../models/Plan");
 const EmailTemplate = require("../models/EmailTemplate");
 const TrainingVideo = require("../models/TrainingVideo");
 const Cluster = require("../models/Cluster");
+const Industry = require("../models/Industry");
 
 const { DB } = process.env;
+
+const DEFAULT_INDUSTRIES = [
+  { name: "Restaurant & Food", order: 1 },
+  { name: "Retail", order: 2 },
+  { name: "Health & Wellness", order: 3 },
+  { name: "Professional Services", order: 4 },
+  { name: "Beauty & Personal Care", order: 5 },
+  { name: "Fitness & Recreation", order: 6 },
+  { name: "Other", order: 99 },
+];
 
 const DEFAULT_CLUSTERS = [
   { name: "Phoenix Metro", order: 1, description: "Greater Phoenix area partners" },
@@ -118,6 +129,14 @@ async function seed() {
   }
   await mongoose.connect(DB);
   console.log("Connected to DB (NODE_ENV=%s)", env);
+
+  // Industries
+  if ((await Industry.countDocuments()) === 0) {
+    await Industry.insertMany(DEFAULT_INDUSTRIES);
+    console.log("Created %d industries", DEFAULT_INDUSTRIES.length);
+  } else {
+    console.log("Industries already exist, skipping");
+  }
 
   // Clusters
   if ((await Cluster.countDocuments()) === 0) {
