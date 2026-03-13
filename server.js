@@ -74,6 +74,11 @@ app.get("/", (req, res) => {
   res.send(`Link Up Us backend running on ${NODE_ENV} mode`);
 });
 
-server.listen(PORT || 3001, () => {
-  console.log(`Link Up Us backend listening on port ${PORT || 3001}`);
+const port = PORT || 3045;
+server.listen(port, () => {
+  console.log(`Link Up Us backend listening on port ${port}`);
+  const healthUrl = NODE_ENV === "customdev"
+    ? "https://react.customdev.solutions/api/health"
+    : `http://localhost:${port}/api/health`;
+  console.log(`Health: ${healthUrl}`);
 });

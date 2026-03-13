@@ -5,8 +5,7 @@
   "scripts": {
     "start": "nodemon server.js",
     "debug": "nodemon --inspect server.js",
-    "seed": "node scripts/seed.js",
-    "build": "tsc"
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

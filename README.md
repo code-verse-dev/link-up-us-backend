@@ -12,6 +12,10 @@ Same structure as **luminal-port-backend**: Express, MongoDB, env-based config, 
 - **Socket.io** (optional, disable with `SOCKET_ENABLED=false`)
 - **SSL** (optional, for `NODE_ENV=customdev`)
 
+## Entry point
+
+**Only `server.js` is used.** `npm start` runs `nodemon server.js`. All API logic lives in `server.js`, `routes/`, and `controllers/`.
+
 ## Folder structure (like luminal-port-backend)
 
 ```
@@ -23,7 +27,7 @@ link-up-us-backend/
 ├── models/         # User, Plan, Subscription, EmailTemplate, TrainingVideo, Lead, Referral
 ├── routes/         # mounted under /api
 ├── scripts/        # seed.js
-├── server.js       # entry (same pattern as luminal)
+├── server.js       # single entry point (same pattern as luminal)
 ├── ssl.js          # SSL certs for customdev (same paths as luminal)
 ├── .env            # default env
 ├── .env.development
