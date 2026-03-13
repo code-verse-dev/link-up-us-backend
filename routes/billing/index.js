@@ -1,9 +1,10 @@
 const express = require("express");
-const { getSubscription, listInvoices, createCheckoutSession } = require("../../controllers/billing");
+const { getConfig, getSubscription, listInvoices, createCheckoutSession } = require("../../controllers/billing");
 const { userRoute } = require("../../middleware");
 
 const router = express.Router();
 
+router.get("/config", getConfig);
 router.post("/create-checkout-session", createCheckoutSession);
 
 router.get("/subscription", userRoute, getSubscription);

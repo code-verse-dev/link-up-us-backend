@@ -2,6 +2,12 @@ const Subscription = require("../../models/Subscription");
 const { ApiResponse } = require("../../helpers");
 
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+/** GET /api/billing/config — public; returns Stripe publishable key for client-side Stripe.js */
+exports.getConfig = async (req, res) => {
+  const stripePublishableKey = process.env.STRIPE_PUBLISHABLE_KEY || "";
+  return res.json(ApiResponse({ stripePublishableKey }, "OK", true));
+};
 const PendingSignup = require("../../models/PendingSignup");
 const Cluster = require("../../models/Cluster");
 const Plan = require("../../models/Plan");
