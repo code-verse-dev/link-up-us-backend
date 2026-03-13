@@ -1,5 +1,7 @@
 const Subscription = require("../../models/Subscription");
-const { ApiResponse } = require("../../helpers");
+const User = require("../../models/User");
+const Referral = require("../../models/Referral");
+const { ApiResponse, generateToken, generateMemberId } = require("../../helpers");
 
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -98,6 +100,133 @@ exports.createCheckoutSession = async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json(ApiResponse({}, err.message || "Checkout failed", false));
+  }
+};
+
+/** POST /api/billing/create-subscription — create customer, subscription, user (inline payment flow). */
+exports.createSubscription = async (req, res) => {
+  try {
+    const {
+      clusterId,
+      email,
+      password,
+      businessName,
+      contactName,
+      databaseSize,
+      referralCode,
+      paymentMethodId,
+    } = req.body || {};
+    if (!clusterId || !email || !password || !businessName || !contactName || !paymentMethodId) {
+      return res
+        .status(400)
+        .json(
+          ApiResponse(
+            {},
+            "clusterId, email, password, businessName, contactName, paymentMethodId required",
+            false
+          )
+        );
+    }
+    const cluster = await Cluster.findById(clusterId);
+    if (!cluster || !cluster.active) {
+      return res.status(400).json(ApiResponse({}, "Invalid or inactive cluster", false));
+    }
+    if (await User.findOne({ email: email.toLowerCase() })) {
+      return res.status(409).json(ApiResponse({}, "Email already registered", false));
+    }
+    let plan = await Plan.findOne({ active: true }).sort({ createdAt: 1 });
+    if (!plan) plan = await Plan.findOne({}).sort({ createdAt: 1 });
+    if (!plan) {
+      return res.status(500).json(ApiResponse({}, "No subscription plan configured", false));
+    }
+
+    const customer = await stripe.customers.create({
+      email: email.toLowerCase(),
+      name: contactName,
+      metadata: { businessName },
+    });
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: customer.id });
+    await stripe.customers.update(customer.id, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
+
+    const priceCents = plan.priceCents;
+    const interval = plan.interval || "month";
+    const stripeSubscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: plan.name,
+              description: plan.subtitle || plan.description || "",
+            },
+            unit_amount: priceCents,
+            recurring: { interval: interval === "year" ? "year" : "month" },
+          },
+        },
+      ],
+      default_payment_method: paymentMethodId,
+      expand: ["latest_invoice.payment_intent"],
+    });
+
+    const memberId = await generateMemberId(User);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      name: contactName,
+      businessName,
+      industry: "General",
+      region: cluster.name,
+      clusterId: cluster._id,
+      status: "active",
+      referralCode: referralCode && referralCode.trim() ? referralCode.trim() : "NONE",
+      databaseSize: databaseSize ?? 0,
+      residualEarnings: 0,
+      memberId,
+    });
+    await user.save();
+
+    await Subscription.create({
+      userId: user._id,
+      planId: plan._id,
+      status: "active",
+      currentPeriodEnd: stripeSubscription.current_period_end
+        ? new Date(stripeSubscription.current_period_end * 1000)
+        : undefined,
+      referralDiscountApplied: false,
+    });
+
+    if (referralCode && referralCode.trim() && referralCode.trim() !== "NONE") {
+      const referrer = await User.findOne({
+        $or: [
+          { memberId: { $regex: new RegExp(`^${referralCode.trim()}$`, "i") } },
+          { referralCode: referralCode.trim() },
+        ],
+        status: "active",
+      });
+      if (referrer) {
+        await Referral.create({
+          referrerUserId: referrer._id,
+          referrerMemberId: referrer.memberId,
+          businessName,
+          region: cluster.name,
+          status: "Active",
+          discountAmount: "$4.99",
+          earningsPerMonth: "$5.00/mo",
+        });
+      }
+    }
+
+    const token = generateToken(user);
+    const u = user.toObject();
+    delete u.password;
+    return res.status(201).json(ApiResponse({ user: u, token }, "Subscription created", true));
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json(ApiResponse({}, err.message || "Create subscription failed", false));
   }
 };
 
