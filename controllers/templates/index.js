@@ -15,6 +15,7 @@ exports.list = async (req, res) => {
   }
 };
 
+
 exports.getById = async (req, res) => {
   try {
     const doc = await EmailTemplate.findById(req.params.id).lean();
