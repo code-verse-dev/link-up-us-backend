@@ -78,7 +78,7 @@ const port = PORT || 3045;
 server.listen(port, () => {
   console.log(`Link Up Us backend listening on port ${port}`);
   const healthUrl = NODE_ENV === "customdev"
-    ? "https://react.customdev.solutions/api/health"
+    ? `https://react.customdev.solutions:${port}/api/health`
     : `http://localhost:${port}/api/health`;
   console.log(`Health: ${healthUrl}`);
 });
