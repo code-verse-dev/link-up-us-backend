@@ -4,6 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "nodemon server.js",
+    "dev": "nodemon server.js",
     "debug": "nodemon --inspect server.js",
     "seed": "node scripts/seed.js"
   },

@@ -1,12 +1,41 @@
 const Partner = require("../../models/Partner");
 const { ApiResponse } = require("../../helpers");
 
+/** POST /api/admin/partners/upload — upload logo image (multipart: logo) */
+exports.uploadImage = async (req, res) => {
+  try {
+    if (!req.file || !req.file.filename) {
+      return res.status(400).json(ApiResponse({}, "No file uploaded", false));
+    }
+    const url = `/Uploads/${req.file.filename}`;
+    return res.json(ApiResponse({ url }, "Image uploaded", true));
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
 exports.list = async (req, res) => {
   try {
-    const activeOnly = req.query.active !== "false";
-    const filter = activeOnly ? { active: true } : {};
-    const list = await Partner.find(filter).sort({ sortOrder: 1, businessName: 1 }).lean();
-    const data = list.map((p) => ({
+    const activeParam = req.query.active;
+    const inactiveOnly = req.query.inactive === "true" || req.query.inactive === "1";
+    const search = (req.query.search || "").trim();
+    const filter = {};
+    if (inactiveOnly) filter.active = false;
+    else if (activeParam === "true" || activeParam === "1") filter.active = true;
+    if (search) {
+      filter.$or = [
+        { businessName: { $regex: search, $options: "i" } },
+        { name: { $regex: search, $options: "i" } },
+        { region: { $regex: search, $options: "i" } },
+      ];
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+    const skip = Math.max(0, parseInt(req.query.skip, 10) || 0);
+    const [list, total] = await Promise.all([
+      Partner.find(filter).sort({ sortOrder: 1, businessName: 1 }).skip(skip).limit(limit).lean(),
+      Partner.countDocuments(filter),
+    ]);
+    const partners = list.map((p) => ({
       _id: p._id.toString(),
       businessName: p.businessName,
       name: p.name,
@@ -16,6 +45,27 @@ exports.list = async (req, res) => {
       active: p.active,
       createdAt: p.createdAt,
     }));
+    return res.json(ApiResponse({ partners, total, limit, skip }, "OK", true));
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
+/** GET single partner by id */
+exports.get = async (req, res) => {
+  try {
+    const partner = await Partner.findById(req.params.id).lean();
+    if (!partner) return res.status(404).json(ApiResponse({}, "Partner not found", false));
+    const data = {
+      _id: partner._id.toString(),
+      businessName: partner.businessName,
+      name: partner.name,
+      logoUrl: partner.logoUrl || null,
+      region: partner.region || "",
+      sortOrder: partner.sortOrder,
+      active: partner.active,
+      createdAt: partner.createdAt,
+    };
     return res.json(ApiResponse(data, "OK", true));
   } catch (err) {
     return res.status(500).json(ApiResponse({}, err.message, false));

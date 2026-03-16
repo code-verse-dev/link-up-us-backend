@@ -2,8 +2,11 @@ const User = require("../../models/User");
 const Cluster = require("../../models/Cluster");
 const PendingSignup = require("../../models/PendingSignup");
 const Referral = require("../../models/Referral");
+const Subscription = require("../../models/Subscription");
+const Plan = require("../../models/Plan");
 const { ApiResponse, generateToken, generateMemberId } = require("../../helpers");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 exports.login = async (req, res) => {
@@ -23,6 +26,56 @@ exports.login = async (req, res) => {
       }
     }
     return res.status(401).json(ApiResponse({}, "Invalid credentials", false));
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
+/** POST /api/auth/forgot-password — member: send reset link (or return link in dev) */
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email || !String(email).trim()) {
+      return res.status(400).json(ApiResponse({}, "Email required", false));
+    }
+    const user = await User.findOne({ email: String(email).toLowerCase() });
+    if (!user) {
+      return res.json(ApiResponse({ message: "If that email exists, a reset link was sent." }, "OK", true));
+    }
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetToken = resetToken;
+    user.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+    const baseUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+    const resetLink = `${baseUrl}/link-up-us/reset-password?token=${resetToken}`;
+    if (process.env.NODE_ENV !== "production") {
+      return res.json(ApiResponse({ resetLink, message: "Use this link to reset (dev only)." }, "OK", true));
+    }
+    return res.json(ApiResponse({ message: "If that email exists, a reset link was sent." }, "OK", true));
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
+/** POST /api/auth/reset-password — member: set new password using token */
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body || {};
+    if (!token || !newPassword || newPassword.length < 6) {
+      return res.status(400).json(ApiResponse({}, "Valid token and new password (min 6 characters) required", false));
+    }
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpires: { $gt: new Date() },
+    });
+    if (!user) {
+      return res.status(400).json(ApiResponse({}, "Invalid or expired reset token", false));
+    }
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetToken = undefined;
+    user.resetTokenExpires = undefined;
+    await user.save();
+    return res.json(ApiResponse({}, "Password reset. You can log in.", true));
   } catch (err) {
     return res.status(500).json(ApiResponse({}, err.message, false));
   }
@@ -138,7 +191,24 @@ exports.completeSignup = async (req, res) => {
       residualEarnings: 0,
       memberId,
     });
-    await user.save();
+    const customerId = session.customer && (typeof session.customer === "string" ? session.customer : session.customer.id);
+    const stripeSub = session.subscription && (typeof session.subscription === "object" ? session.subscription : null);
+    if (customerId) {
+      user.stripeCustomerId = customerId;
+      await user.save();
+    }
+    if (stripeSub && stripeSub.id) {
+      let planId = await Plan.findOne({ active: true }).sort({ createdAt: 1 }).select("_id").lean();
+      if (!planId) planId = await Plan.findOne({}).sort({ createdAt: 1 }).select("_id").lean();
+      await Subscription.create({
+        userId: user._id,
+        planId: planId?._id || planId,
+        status: stripeSub.status === "active" ? "active" : stripeSub.status,
+        currentPeriodEnd: stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000) : undefined,
+        referralDiscountApplied: false,
+        stripeSubscriptionId: stripeSub.id,
+      });
+    }
     if (
       pending.referralCode &&
       pending.referralCode !== "NONE"

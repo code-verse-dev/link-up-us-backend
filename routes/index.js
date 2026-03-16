@@ -16,5 +16,6 @@ router.use("/clusters", require("./clusters"));
 router.use("/industries", require("./industries"));
 router.use("/partners", require("./partners"));
 router.use("/tiers", require("./tiers"));
+router.use("/admin", require("./admin"));
 
 module.exports = router;

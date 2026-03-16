@@ -17,6 +17,8 @@ const Cluster = require("../models/Cluster");
 const Industry = require("../models/Industry");
 const Partner = require("../models/Partner");
 const ReferralTier = require("../models/ReferralTier");
+const Admin = require("../models/Admin");
+const bcrypt = require("bcryptjs");
 
 const { DB } = process.env;
 
@@ -295,6 +297,22 @@ async function seed() {
     console.log("Created %d referral tiers", DEFAULT_TIERS.length);
   } else {
     console.log("Referral tiers already exist, skipping");
+  }
+
+  // Admin user (for admin portal)
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@linkup.us";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  let admin = await Admin.findOne({ email: adminEmail });
+  if (!admin) {
+    admin = new Admin({
+      email: adminEmail,
+      password: await bcrypt.hash(adminPassword, 10),
+      name: "Admin",
+    });
+    await admin.save();
+    console.log("Created admin user:", adminEmail, "(password: " + adminPassword + ")");
+  } else {
+    console.log("Admin user already exists:", adminEmail);
   }
 
   await mongoose.disconnect();

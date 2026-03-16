@@ -19,6 +19,9 @@ const userSchema = new Schema(
     address: { type: String },
     website: { type: String },
     partnerBannerUrl: { type: String },
+    stripeCustomerId: { type: String },
+    resetToken: { type: String },
+    resetTokenExpires: { type: Date },
   },
   {
     timestamps: true,

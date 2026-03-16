@@ -188,6 +188,7 @@ exports.createSubscription = async (req, res) => {
       databaseSize: databaseSize ?? 0,
       residualEarnings: 0,
       memberId,
+      stripeCustomerId: customer.id,
     });
     await user.save();
 
@@ -199,6 +200,7 @@ exports.createSubscription = async (req, res) => {
         ? new Date(stripeSubscription.current_period_end * 1000)
         : undefined,
       referralDiscountApplied: false,
+      stripeSubscriptionId: stripeSubscription.id,
     });
 
     if (referralCode && referralCode.trim() && referralCode.trim() !== "NONE") {
@@ -310,6 +312,32 @@ exports.getBillingSummary = async (req, res) => {
       currentPeriodEnd: sub?.currentPeriodEnd || null,
     };
     return res.json(ApiResponse(summary, "OK", true));
+  } catch (err) {
+    return res.status(500).json(ApiResponse({}, err.message, false));
+  }
+};
+
+/** POST /api/billing/subscription/cancel — member cancels own subscription (at period end). */
+exports.cancelSubscription = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.headers["x-user-id"] || req.query?.userId;
+    if (!userId) {
+      return res.status(401).json(ApiResponse({}, "Unauthorized", false));
+    }
+    const sub = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
+    if (!sub) {
+      return res.json(ApiResponse({ cancelAtPeriodEnd: false, message: "No subscription found." }, "OK", true));
+    }
+    if (sub.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
+      } catch (e) {
+        if (e.code !== "resource_missing") throw e;
+      }
+    }
+    sub.cancelAtPeriodEnd = true;
+    await sub.save();
+    return res.json(ApiResponse({ cancelAtPeriodEnd: true, currentPeriodEnd: sub.currentPeriodEnd }, "Cancel at period end set", true));
   } catch (err) {
     return res.status(500).json(ApiResponse({}, err.message, false));
   }
