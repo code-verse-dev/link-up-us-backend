@@ -1,4 +1,5 @@
 const User = require("../../models/User");
+const MarketplaceItem = require("../../models/MarketplaceItem");
 const { ApiResponse } = require("../../helpers");
 
 exports.getMe = async (req, res) => {
@@ -15,15 +16,41 @@ exports.listMembers = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
     const skip = parseInt(req.query.skip, 10) || 0;
-    const [members, total] = await Promise.all([
-      User.find()
+    const region = req.query.region;
+    const [users, marketplaceItems, totalUsers] = await Promise.all([
+      User.find({ status: "active" })
         .select("-password")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      User.countDocuments(),
+      MarketplaceItem.find({ active: true }).sort({ sortOrder: 1, businessName: 1 }).lean(),
+      User.countDocuments({ status: "active" }),
     ]);
+    const userMembers = users.map((u) => ({
+      _id: u._id,
+      memberId: u.memberId,
+      businessName: u.businessName,
+      name: u.name,
+      region: u.region || "",
+      logoUrl: u.partnerBannerUrl || null,
+      partnerBannerUrl: u.partnerBannerUrl || null,
+      databaseSize: u.databaseSize,
+      source: "member",
+    }));
+    const itemMembers = marketplaceItems.map((i) => ({
+      _id: i._id,
+      memberId: undefined,
+      businessName: i.businessName,
+      name: i.name,
+      region: i.region || "",
+      logoUrl: i.logoUrl || i.partnerBannerUrl || null,
+      partnerBannerUrl: i.partnerBannerUrl || null,
+      databaseSize: i.databaseSize,
+      source: i.source || "member",
+    }));
+    const members = [...userMembers, ...itemMembers];
+    const total = totalUsers + itemMembers.length;
     return res.json(
       ApiResponse(
         { members, total, limit, skip },

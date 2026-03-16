@@ -1,5 +1,5 @@
 const express = require("express");
-const { getConfig, getSubscription, listInvoices, createCheckoutSession, createSubscription, getPaymentMethod, getBillingSummary } = require("../../controllers/billing");
+const { getConfig, getSubscription, cancelSubscription, listInvoices, createCheckoutSession, createSubscription, getPaymentMethod, getBillingSummary } = require("../../controllers/billing");
 const { userRoute } = require("../../middleware");
 
 const router = express.Router();
@@ -9,6 +9,7 @@ router.post("/create-checkout-session", createCheckoutSession);
 router.post("/create-subscription", createSubscription);
 
 router.get("/subscription", userRoute, getSubscription);
+router.post("/subscription/cancel", userRoute, cancelSubscription);
 router.get("/payment-method", userRoute, getPaymentMethod);
 router.get("/summary", userRoute, getBillingSummary);
 router.get("/invoices", userRoute, listInvoices);

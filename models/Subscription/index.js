@@ -8,6 +8,8 @@ const subscriptionSchema = new Schema(
     status: { type: String, enum: ["active", "past_due", "canceled"], default: "active" },
     currentPeriodEnd: { type: Date },
     referralDiscountApplied: { type: Boolean, default: false },
+    stripeSubscriptionId: { type: String },
+    cancelAtPeriodEnd: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

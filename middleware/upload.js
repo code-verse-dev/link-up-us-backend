@@ -11,16 +11,28 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req, file, cb) => {
+const imageFilter = (req, file, cb) => {
   const allowed = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
   if (allowed.includes(file.mimetype)) cb(null, true);
   else cb(new Error("Only PNG, JPG, GIF, WebP allowed"), false);
 };
 
+const videoFilter = (req, file, cb) => {
+  const allowed = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
+  if (allowed.includes(file.mimetype)) cb(null, true);
+  else cb(new Error("Only MP4, WebM, MOV allowed"), false);
+};
+
 const upload = multer({
   storage,
-  fileFilter,
+  fileFilter: imageFilter,
   limits: { fileSize: 2 * 1024 * 1024 },
+});
+
+const uploadVideo = multer({
+  storage,
+  fileFilter: videoFilter,
+  limits: { fileSize: 300 * 1024 * 1024 },
 });
 
 const createSingleUpload = (fieldName, uploadKind) => (req, res, next) => {
@@ -31,5 +43,16 @@ const createSingleUpload = (fieldName, uploadKind) => (req, res, next) => {
   });
 };
 
+const createVideoUpload = (fieldName, uploadKind) => (req, res, next) => {
+  req.uploadKind = uploadKind;
+  uploadVideo.single(fieldName)(req, res, (err) => {
+    if (err) return res.status(400).json({ status: false, message: err.message, data: {} });
+    next();
+  });
+};
+
 exports.uploadBanner = createSingleUpload("banner", "banner");
 exports.uploadAvatar = createSingleUpload("avatar", "avatar");
+exports.uploadLogo = createSingleUpload("logo", "logo");
+exports.uploadThumbnail = createSingleUpload("thumbnail", "thumb");
+exports.uploadVideoFile = createVideoUpload("video", "video");
